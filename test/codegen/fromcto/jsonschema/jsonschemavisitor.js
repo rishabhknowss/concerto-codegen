@@ -334,6 +334,24 @@ describe('JSONSchema (samples)', function () {
             expect(schema.properties.myString.pattern).equal('abc.*');
         });
 
+        it('should generate unicode-safe patterns from regexes with identity escapes', () => {
+            const modelManager = new ModelManager();
+            modelManager.addCTOModel(`namespace test@1.0.0
+            concept Test {
+                o String noAngleBrackets regex=/^[^\\<\\>]*$/
+                o String escapedDash regex=/^a\\-b$/
+                o String alreadySafe regex=/^[\\w\\-]+\\.\\d+$/
+            }`);
+            const visitor = new JSONSchemaVisitor();
+            const schema = modelManager.accept(visitor, { rootType: 'test@1.0.0.Test'});
+            expect(schema.properties.noAngleBrackets.pattern).equal('^[^<>]*$');
+            expect(schema.properties.escapedDash.pattern).equal('^a-b$');
+            expect(schema.properties.alreadySafe.pattern).equal('^[\\w\\-]+\\.\\d+$');
+            Object.values(schema.properties)
+                .filter(property => property.pattern)
+                .forEach(property => expect(() => new RegExp(property.pattern, 'u')).to.not.throw());
+        });
+
         it('should inline types for simple model', () => {
             const modelManager = new ModelManager();
             modelManager.addCTOModel( MODEL_SIMPLE );
